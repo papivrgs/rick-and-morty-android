@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">RickAndMortyApp</string>
+    <string name="character_list_title">Rick and Morty</string>
+    <string name="character_image_description">Imagen de %1$s</string>
+    <string name="character_status">Estado: %1$s</string>
+    <string name="character_species">Especie: %1$s</string>
+    <string name="character_status_alive">Alive</string>
+    <string name="character_status_dead">Dead</string>
+    <string name="character_status_unknown">Unknown</string>
+    <string name="character_initial_loading">Cargando personajes…</string>
+    <string name="character_pagination_loading">Cargando más personajes…</string>
+    <string name="character_pagination_end">Has llegado al final de la lista.</string>
+    <string name="character_empty_title">No hay personajes</string>
+    <string name="character_empty_message">No encontramos personajes para mostrar.</string>
+    <string name="character_initial_error_title">No pudimos cargar los personajes</string>
+    <string name="character_pagination_error_title">No pudimos cargar más personajes</string>
+    <string name="character_error_connection">Revisa tu conexión a internet e inténtalo de nuevo.</string>
+    <string name="character_error_serialization">La respuesta recibida no pudo procesarse.</string>
+    <string name="character_error_http">El servidor respondió con el código %1$d.</string>
+    <string name="character_retry">Reintentar</string>
 </resources>
