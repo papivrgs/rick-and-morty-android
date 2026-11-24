@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+/ANALISIS_PROYECTO.txt
+/PLAN_IMPLEMENTACION.txt
+.kotlin/
