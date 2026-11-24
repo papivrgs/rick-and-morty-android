@@ -1,6 +1,21 @@
 <resources>
     <string name="app_name">RickAndMortyApp</string>
     <string name="character_list_title">Rick and Morty</string>
+    <string name="character_list_subtitle">Explorador interdimensional</string>
+    <string name="character_search_label">Buscar por nombre</string>
+    <string name="character_clear_search">Limpiar búsqueda</string>
+    <string name="character_filters_title">Filtros</string>
+    <string name="character_show_filters">Mostrar filtros</string>
+    <string name="character_hide_filters">Ocultar filtros</string>
+    <string name="character_filter_all">Todos</string>
+    <string name="character_species_filter_label">Especie</string>
+    <string name="character_clear_species">Limpiar especie</string>
+    <string name="character_clear_filters">Limpiar filtros</string>
+    <string name="character_filtered_results">Filtros activos</string>
+    <plurals name="character_results_count">
+        <item quantity="one">%1$d personaje</item>
+        <item quantity="other">%1$d personajes</item>
+    </plurals>
     <string name="character_image_description">Imagen de %1$s</string>
     <string name="character_status">Estado: %1$s</string>
     <string name="character_species">Especie: %1$s</string>
@@ -12,8 +27,11 @@
     <string name="character_pagination_end">Has llegado al final de la lista.</string>
     <string name="character_empty_title">No hay personajes</string>
     <string name="character_empty_message">No encontramos personajes para mostrar.</string>
+    <string name="character_no_results_title">Sin coincidencias en este universo</string>
+    <string name="character_no_results_message">Prueba otro nombre, estado o especie, o limpia los filtros.</string>
     <string name="character_initial_error_title">No pudimos cargar los personajes</string>
     <string name="character_pagination_error_title">No pudimos cargar más personajes</string>
+    <string name="character_refresh_error_title">No pudimos actualizar los personajes</string>
     <string name="character_error_connection">Revisa tu conexión a internet e inténtalo de nuevo.</string>
     <string name="character_error_serialization">La respuesta recibida no pudo procesarse.</string>
     <string name="character_error_http">El servidor respondió con el código %1$d.</string>
@@ -43,6 +61,10 @@
     <string name="auth_show_password_confirmation">Mostrar confirmación de contraseña</string>
     <string name="auth_hide_password_confirmation">Ocultar confirmación de contraseña</string>
     <string name="auth_logout">Cerrar sesión</string>
+    <string name="auth_logout_confirmation_title">¿Cerrar sesión?</string>
+    <string name="auth_logout_confirmation_message">Tendrás que identificarte de nuevo para volver al multiverso.</string>
+    <string name="auth_logout_confirmation_action">Cerrar sesión</string>
+    <string name="auth_logout_confirmation_cancel">Cancelar</string>
     <string name="auth_error_required">Este campo es obligatorio.</string>
     <string name="auth_error_password_length">La contraseña debe tener al menos 8 caracteres.</string>
     <string name="auth_error_password_mismatch">Las contraseñas no coinciden.</string>

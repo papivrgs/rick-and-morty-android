@@ -2,7 +2,9 @@ package com.example.rickandmorty.data.repository
 
 import com.example.rickandmorty.data.remote.RickAndMortyApi
 import com.example.rickandmorty.data.remote.mapper.toDomain
+import com.example.rickandmorty.domain.model.CharacterFilters
 import com.example.rickandmorty.domain.model.CharacterPage
+import com.example.rickandmorty.domain.model.CharacterStatusFilter
 import com.example.rickandmorty.domain.repository.CharacterPageResult
 import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.domain.repository.CharacterRepositoryError
@@ -14,8 +16,17 @@ class CharacterRepositoryImpl(
     private val api: RickAndMortyApi,
 ) : CharacterRepository {
 
-    override suspend fun getCharacters(page: Int): CharacterPageResult = try {
-        val response = api.getCharacters(page)
+    override suspend fun getCharacters(
+        page: Int,
+        filters: CharacterFilters,
+    ): CharacterPageResult = try {
+        val normalizedFilters = filters.normalized()
+        val response = api.getCharacters(
+            page = page,
+            name = normalizedFilters.name.ifBlank { null },
+            status = normalizedFilters.status.toApiValue(),
+            species = normalizedFilters.species.ifBlank { null },
+        )
         CharacterPageResult.Success(
             page = CharacterPage(
                 characters = response.results.map { it.toDomain() },
@@ -28,12 +39,37 @@ class CharacterRepositoryImpl(
             ),
         )
     } catch (error: HttpException) {
-        CharacterPageResult.Failure(
-            CharacterRepositoryError.Http(statusCode = error.code()),
-        )
+        if (error.code() == HTTP_NOT_FOUND && filters.hasActiveFilters) {
+            CharacterPageResult.Success(
+                CharacterPage(
+                    characters = emptyList(),
+                    currentPage = page,
+                    totalCharacters = 0,
+                    totalPages = 0,
+                    nextPageUrl = null,
+                    previousPageUrl = null,
+                    isLastPage = true,
+                ),
+            )
+        } else {
+            CharacterPageResult.Failure(
+                CharacterRepositoryError.Http(statusCode = error.code()),
+            )
+        }
     } catch (error: IOException) {
         CharacterPageResult.Failure(CharacterRepositoryError.Connection)
     } catch (error: SerializationException) {
         CharacterPageResult.Failure(CharacterRepositoryError.Serialization)
+    }
+
+    private fun CharacterStatusFilter.toApiValue(): String? = when (this) {
+        CharacterStatusFilter.All -> null
+        CharacterStatusFilter.Alive -> "alive"
+        CharacterStatusFilter.Dead -> "dead"
+        CharacterStatusFilter.Unknown -> "unknown"
+    }
+
+    private companion object {
+        const val HTTP_NOT_FOUND = 404
     }
 }

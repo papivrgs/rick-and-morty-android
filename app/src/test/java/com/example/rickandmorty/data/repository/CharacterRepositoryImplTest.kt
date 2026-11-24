@@ -1,6 +1,8 @@
 package com.example.rickandmorty.data.repository
 
 import com.example.rickandmorty.app.AppContainer
+import com.example.rickandmorty.domain.model.CharacterFilters
+import com.example.rickandmorty.domain.model.CharacterStatusFilter
 import com.example.rickandmorty.domain.repository.CharacterPageResult
 import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.domain.repository.CharacterRepositoryError
@@ -68,6 +70,41 @@ class CharacterRepositoryImplTest {
     }
 
     @Test
+    fun `sends combined filters to the API`() = runTest {
+        server.enqueueJson(VALID_RESPONSE_JSON)
+
+        repository.getCharacters(
+            page = 2,
+            filters = CharacterFilters(
+                name = "Rick Sanchez",
+                status = CharacterStatusFilter.Alive,
+                species = "Human",
+            ),
+        )
+
+        val request = server.takeRequest()
+        assertEquals("2", request.url.queryParameter("page"))
+        assertEquals("Rick Sanchez", request.url.queryParameter("name"))
+        assertEquals("alive", request.url.queryParameter("status"))
+        assertEquals("Human", request.url.queryParameter("species"))
+    }
+
+    @Test
+    fun `omits blank filters from the API request`() = runTest {
+        server.enqueueJson(VALID_RESPONSE_JSON)
+
+        repository.getCharacters(
+            page = 1,
+            filters = CharacterFilters(name = "  ", species = " "),
+        )
+
+        val request = server.takeRequest()
+        assertEquals(null, request.url.queryParameter("name"))
+        assertEquals(null, request.url.queryParameter("status"))
+        assertEquals(null, request.url.queryParameter("species"))
+    }
+
+    @Test
     fun `maps HTTP 404 to an HTTP repository error`() = runTest {
         server.enqueueResponse(code = 404, body = "Not found")
 
@@ -77,6 +114,21 @@ class CharacterRepositoryImplTest {
             CharacterPageResult.Failure(CharacterRepositoryError.Http(404)),
             result,
         )
+    }
+
+    @Test
+    fun `maps a filtered HTTP 404 to an empty final page`() = runTest {
+        server.enqueueResponse(code = 404, body = "Not found")
+
+        val page = repository.getCharacters(
+            page = 1,
+            filters = CharacterFilters(name = "Nobody"),
+        ).requireSuccessPage()
+
+        assertTrue(page.characters.isEmpty())
+        assertEquals(0, page.totalCharacters)
+        assertEquals(0, page.totalPages)
+        assertTrue(page.isLastPage)
     }
 
     @Test

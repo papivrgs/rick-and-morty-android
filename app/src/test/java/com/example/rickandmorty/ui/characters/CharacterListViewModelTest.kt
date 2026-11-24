@@ -1,7 +1,9 @@
 package com.example.rickandmorty.ui.characters
 
 import com.example.rickandmorty.domain.model.Character
+import com.example.rickandmorty.domain.model.CharacterFilters
 import com.example.rickandmorty.domain.model.CharacterPage
+import com.example.rickandmorty.domain.model.CharacterStatusFilter
 import com.example.rickandmorty.domain.repository.CharacterPageResult
 import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.domain.repository.CharacterRepositoryError
@@ -9,7 +11,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -184,16 +189,229 @@ class CharacterListViewModelTest {
         assertNull(viewModel.uiState.value.paginationError)
     }
 
-    private class FakeCharacterRepository(
-        private val response: suspend (page: Int) -> CharacterPageResult,
-    ) : CharacterRepository {
-        val requestedPages = mutableListOf<Int>()
+    @Test
+    fun `debounces name search for 350 milliseconds`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page -> successPage(page, listOf(page)) }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
 
-        override suspend fun getCharacters(page: Int): CharacterPageResult {
-            requestedPages += page
-            return response(page)
+        viewModel.onSearchQueryChanged("Rick")
+        advanceTimeBy(349)
+        runCurrent()
+        assertEquals(1, repository.requests.size)
+
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(2, repository.requests.size)
+        assertEquals("Rick", repository.requests.last().filters.name)
+    }
+
+    @Test
+    fun `does not repeat requests for equivalent filters`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page -> successPage(page, listOf(page)) }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.onSearchQueryChanged("Rick")
+        advanceTimeBy(350)
+        runCurrent()
+        viewModel.onSearchQueryChanged(" Rick ")
+        advanceTimeBy(350)
+        runCurrent()
+
+        assertEquals(2, repository.requests.size)
+    }
+
+    @Test
+    fun `combines name status and free species filters`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page -> successPage(page, listOf(page)) }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.onSearchQueryChanged("Morty")
+        viewModel.onStatusSelected(CharacterStatusFilter.Alive)
+        runCurrent()
+        viewModel.onSpeciesChanged("Robot")
+        advanceTimeBy(350)
+        runCurrent()
+
+        assertEquals(
+            CharacterFilters(
+                name = "Morty",
+                status = CharacterStatusFilter.Alive,
+                species = "Robot",
+            ),
+            repository.requests.last().filters,
+        )
+    }
+
+    @Test
+    fun `filter changes reset pagination to the first page`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page -> successPage(page, listOf(page)) }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+        viewModel.loadNextPage()
+        advanceUntilIdle()
+
+        viewModel.onStatusSelected(CharacterStatusFilter.Dead)
+        advanceUntilIdle()
+
+        assertEquals(listOf(1, 2, 1), repository.requestedPages)
+        assertEquals(CharacterStatusFilter.Dead, repository.requests.last().filters.status)
+    }
+
+    @Test
+    fun `cancels obsolete search and keeps only the latest response`() = runTest(dispatcher) {
+        val obsoleteResult = CompletableDeferred<CharacterPageResult>()
+        val repository = FakeCharacterRepository { page, filters ->
+            when (filters.name) {
+                "Rick" -> withContext(NonCancellable) { obsoleteResult.await() }
+                "Morty" -> successPage(page, listOf(2), isLastPage = true)
+                else -> successPage(page, listOf(0))
+            }
+        }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.onSearchQueryChanged("Rick")
+        advanceTimeBy(350)
+        runCurrent()
+        viewModel.onSearchQueryChanged("Morty")
+        advanceTimeBy(350)
+        runCurrent()
+        obsoleteResult.complete(successPage(1, listOf(1), isLastPage = true))
+        advanceUntilIdle()
+
+        assertEquals(listOf(2), viewModel.uiState.value.characters.map { it.id })
+        assertEquals("Morty", repository.requests.last().filters.name)
+    }
+
+    @Test
+    fun `pagination keeps active filters`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page ->
+            successPage(page, listOf(page), isLastPage = page == 2)
+        }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+        viewModel.onSpeciesChanged("Alien")
+        advanceTimeBy(350)
+        advanceUntilIdle()
+
+        viewModel.loadNextPage()
+        advanceUntilIdle()
+
+        assertEquals(2, repository.requests.last().page)
+        assertEquals("Alien", repository.requests.last().filters.species)
+    }
+
+    @Test
+    fun `refresh keeps filters and replaces current content`() = runTest(dispatcher) {
+        var filteredAttempts = 0
+        val repository = FakeCharacterRepository { page, filters ->
+            if (filters.name == "Rick") {
+                filteredAttempts++
+                successPage(page, listOf(filteredAttempts), isLastPage = true)
+            } else {
+                successPage(page, listOf(0))
+            }
+        }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+        viewModel.onSearchQueryChanged("Rick")
+        advanceTimeBy(350)
+        advanceUntilIdle()
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(2), viewModel.uiState.value.characters.map { it.id })
+        assertEquals("Rick", repository.requests.last().filters.name)
+        assertFalse(viewModel.uiState.value.isRefreshing)
+    }
+
+    @Test
+    fun `exposes an empty final result for a search without matches`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page, filters ->
+            if (filters.hasActiveFilters) successPage(page, emptyList(), isLastPage = true)
+            else successPage(page, listOf(1))
+        }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.onSearchQueryChanged("Nobody")
+        advanceTimeBy(350)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.characters.isEmpty())
+        assertTrue(viewModel.uiState.value.isLastPage)
+        assertTrue(viewModel.uiState.value.hasActiveFilters)
+        assertNull(viewModel.uiState.value.initialError)
+    }
+
+    @Test
+    fun `clear filters restores defaults and reloads the first page`() = runTest(dispatcher) {
+        val repository = FakeCharacterRepository { page -> successPage(page, listOf(page)) }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+        viewModel.onSearchQueryChanged("Rick")
+        viewModel.onStatusSelected(CharacterStatusFilter.Alive)
+        advanceUntilIdle()
+
+        viewModel.clearFilters()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("", state.searchQuery)
+        assertEquals("", state.speciesQuery)
+        assertEquals(CharacterStatusFilter.All, state.selectedStatus)
+        assertEquals(CharacterFilters(), repository.requests.last().filters)
+        assertEquals(1, repository.requests.last().page)
+    }
+
+    @Test
+    fun `refresh failure keeps content and exposes a recoverable error`() = runTest(dispatcher) {
+        var shouldFailRefresh = false
+        val repository = FakeCharacterRepository { page ->
+            if (shouldFailRefresh) failure(CharacterRepositoryError.Connection)
+            else successPage(page, listOf(1, 2))
+        }
+        val viewModel = CharacterListViewModel(repository)
+        advanceUntilIdle()
+        shouldFailRefresh = true
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1, 2), viewModel.uiState.value.characters.map { it.id })
+        assertEquals(CharacterListUiError.Connection, viewModel.uiState.value.refreshError)
+        assertFalse(viewModel.uiState.value.isRefreshing)
+    }
+
+    private class FakeCharacterRepository(
+        private val response: suspend (page: Int, filters: CharacterFilters) -> CharacterPageResult,
+    ) : CharacterRepository {
+        constructor(response: suspend (page: Int) -> CharacterPageResult) : this(
+            response = { page, _ -> response(page) },
+        )
+
+        val requests = mutableListOf<CharacterRequest>()
+        val requestedPages: List<Int>
+            get() = requests.map(CharacterRequest::page)
+
+        override suspend fun getCharacters(
+            page: Int,
+            filters: CharacterFilters,
+        ): CharacterPageResult {
+            requests += CharacterRequest(page, filters)
+            return response(page, filters)
         }
     }
+
+    private data class CharacterRequest(
+        val page: Int,
+        val filters: CharacterFilters,
+    )
 
     private companion object {
         fun successPage(

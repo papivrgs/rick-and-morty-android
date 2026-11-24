@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -47,30 +49,36 @@ class AuthenticationFlowTest {
         composeRule.onNodeWithText("Crear una cuenta").performClick()
         composeRule.waitForText("Crear cuenta")
 
-        composeRule.textField("Nombre de usuario").performTextInput(username)
-        composeRule.textField("Contraseña").performTextInput(password)
-        composeRule.textField("Confirmar contraseña").performTextInput(password)
-        composeRule.onNodeWithText("Registrarme").performClick()
+        composeRule.textField("Nombre de usuario").performTextReplacement(username)
+        composeRule.textField("Contraseña").performTextReplacement(password)
+        composeRule.textField("Confirmar contraseña").performTextReplacement(password)
+        composeRule.onNodeWithText("Registrarme").performScrollTo().performClick()
 
         composeRule.waitForText("Rick and Morty")
         scenario.recreate()
         composeRule.waitForText("Rick and Morty")
 
-        composeRule.onNodeWithText("Cerrar sesión").performClick()
+        composeRule.confirmLogout()
         composeRule.waitForText("Bienvenido")
 
         composeRule.textField("Nombre de usuario")
-            .performTextInput(username.uppercase(Locale.ROOT))
-        composeRule.textField("Contraseña").performTextInput(password)
-        composeRule.onNodeWithText("Iniciar sesión").performClick()
+            .performTextReplacement(username.uppercase(Locale.ROOT))
+        composeRule.textField("Contraseña").performTextReplacement(password)
+        composeRule.onNodeWithText("Iniciar sesión").performScrollTo().performClick()
 
         composeRule.waitForText("Rick and Morty")
-        composeRule.onNodeWithText("Cerrar sesión").performClick()
+        composeRule.confirmLogout()
         composeRule.waitForText("Bienvenido")
     }
 
     private fun androidx.compose.ui.test.junit4.ComposeTestRule.textField(label: String) =
         onNode(hasText(label) and hasSetTextAction())
+
+    private fun androidx.compose.ui.test.junit4.ComposeTestRule.confirmLogout() {
+        onNodeWithContentDescription("Cerrar sesión").performClick()
+        waitForText("¿Cerrar sesión?")
+        onNodeWithText("Cerrar sesión").performClick()
+    }
 
     private fun androidx.compose.ui.test.junit4.ComposeTestRule.waitForText(text: String) {
         waitUntil(timeoutMillis = 60_000) {
