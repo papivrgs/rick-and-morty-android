@@ -1,6 +1,7 @@
 package com.example.rickandmorty.ui.characters.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,11 +40,12 @@ fun CharacterCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -55,8 +58,9 @@ fun CharacterCard(
                     character.name,
                 ),
                 modifier = Modifier
-                    .size(112.dp)
-                    .clip(RoundedCornerShape(14.dp)),
+                    .size(108.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop,
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -69,7 +73,7 @@ fun CharacterCard(
                 Text(
                     text = character.name,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                 )
                 CharacterStatus(status = character.status)
                 Text(
@@ -98,21 +102,39 @@ private fun CharacterStatus(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    Row(
+    val containerColor = when (status.lowercase()) {
+        "alive" -> MaterialTheme.colorScheme.primaryContainer
+        "dead" -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = when (status.lowercase()) {
+        "alive" -> MaterialTheme.colorScheme.onPrimaryContainer
+        "dead" -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
         modifier = modifier.semantics(mergeDescendants = true) {},
-        verticalAlignment = Alignment.CenterVertically,
+        shape = RoundedCornerShape(50),
+        color = containerColor,
+        contentColor = contentColor,
     ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .background(indicatorColor, CircleShape),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.character_status, normalizedStatus),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(9.dp)
+                    .background(indicatorColor, CircleShape),
+            )
+            Spacer(modifier = Modifier.width(7.dp))
+            Text(
+                text = stringResource(R.string.character_status, normalizedStatus),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 
