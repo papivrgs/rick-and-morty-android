@@ -4,44 +4,31 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.rickandmorty.app.AppContainer
+import com.example.rickandmorty.ui.characters.CharacterListScreen
+import com.example.rickandmorty.ui.characters.CharacterListViewModel
+import com.example.rickandmorty.ui.characters.CharacterListViewModelFactory
 import com.example.rickandmorty.ui.theme.RickAndMortyAppTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val appContainer by lazy { AppContainer() }
+
+    private val characterListViewModelFactory by lazy {
+        CharacterListViewModelFactory(appContainer.characterRepository)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             RickAndMortyAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                val characterListViewModel = viewModel<CharacterListViewModel>(
+                    factory = characterListViewModelFactory,
+                )
+                CharacterListScreen(viewModel = characterListViewModel)
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    RickAndMortyAppTheme {
-        Greeting("Android")
     }
 }
