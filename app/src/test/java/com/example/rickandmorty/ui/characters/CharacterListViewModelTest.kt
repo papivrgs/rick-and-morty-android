@@ -7,6 +7,8 @@ import com.example.rickandmorty.domain.model.CharacterStatusFilter
 import com.example.rickandmorty.domain.repository.CharacterPageResult
 import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.domain.repository.CharacterRepositoryError
+import com.example.rickandmorty.domain.repository.CharacterResult
+import com.example.rickandmorty.domain.repository.EpisodeResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -406,6 +408,12 @@ class CharacterListViewModelTest {
             requests += CharacterRequest(page, filters)
             return response(page, filters)
         }
+
+        override suspend fun getCharacter(id: Int): CharacterResult =
+            error("Not used by list tests")
+
+        override suspend fun getEpisodes(ids: List<Int>): EpisodeResult =
+            error("Not used by list tests")
     }
 
     private data class CharacterRequest(

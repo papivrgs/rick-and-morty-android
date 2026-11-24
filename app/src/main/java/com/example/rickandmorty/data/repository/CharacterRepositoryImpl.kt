@@ -8,6 +8,8 @@ import com.example.rickandmorty.domain.model.CharacterStatusFilter
 import com.example.rickandmorty.domain.repository.CharacterPageResult
 import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.domain.repository.CharacterRepositoryError
+import com.example.rickandmorty.domain.repository.CharacterResult
+import com.example.rickandmorty.domain.repository.EpisodeResult
 import java.io.IOException
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
@@ -60,6 +62,39 @@ class CharacterRepositoryImpl(
         CharacterPageResult.Failure(CharacterRepositoryError.Connection)
     } catch (error: SerializationException) {
         CharacterPageResult.Failure(CharacterRepositoryError.Serialization)
+    }
+
+    override suspend fun getCharacter(id: Int): CharacterResult = try {
+        CharacterResult.Success(api.getCharacter(id).toDomain())
+    } catch (error: HttpException) {
+        CharacterResult.Failure(CharacterRepositoryError.Http(error.code()))
+    } catch (error: IOException) {
+        CharacterResult.Failure(CharacterRepositoryError.Connection)
+    } catch (error: SerializationException) {
+        CharacterResult.Failure(CharacterRepositoryError.Serialization)
+    }
+
+    override suspend fun getEpisodes(ids: List<Int>): EpisodeResult {
+        val orderedIds = ids.distinct()
+        if (orderedIds.isEmpty()) return EpisodeResult.Success(emptyList())
+
+        return try {
+            val episodes = if (orderedIds.size == 1) {
+                listOf(api.getEpisode(orderedIds.single()))
+            } else {
+                api.getEpisodes(orderedIds.joinToString(","))
+            }
+            val episodesById = episodes.associateBy { it.id }
+            EpisodeResult.Success(
+                episodes = orderedIds.mapNotNull { id -> episodesById[id]?.toDomain() },
+            )
+        } catch (error: HttpException) {
+            EpisodeResult.Failure(CharacterRepositoryError.Http(error.code()))
+        } catch (error: IOException) {
+            EpisodeResult.Failure(CharacterRepositoryError.Connection)
+        } catch (error: SerializationException) {
+            EpisodeResult.Failure(CharacterRepositoryError.Serialization)
+        }
     }
 
     private fun CharacterStatusFilter.toApiValue(): String? = when (this) {
