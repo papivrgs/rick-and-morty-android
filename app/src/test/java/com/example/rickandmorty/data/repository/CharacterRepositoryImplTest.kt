@@ -6,6 +6,8 @@ import com.example.rickandmorty.domain.model.CharacterStatusFilter
 import com.example.rickandmorty.domain.repository.CharacterPageResult
 import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.domain.repository.CharacterRepositoryError
+import com.example.rickandmorty.domain.repository.CharacterResult
+import com.example.rickandmorty.domain.repository.EpisodeResult
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -193,6 +195,73 @@ class CharacterRepositoryImplTest {
         assertTrue(page.isLastPage)
     }
 
+    @Test
+    fun `loads a character detail by id`() = runTest {
+        server.enqueueJson(CHARACTER_DETAIL_JSON)
+
+        val result = repository.getCharacter(id = 2)
+
+        val character = (result as CharacterResult.Success).character
+        assertEquals(2, character.id)
+        assertEquals("Morty Smith", character.name)
+        assertEquals("Citadel of Ricks", character.locationName)
+        assertEquals("/character/2", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun `uses one multiple endpoint request and preserves requested episode order`() = runTest {
+        server.enqueueJson(EPISODES_JSON)
+
+        val result = repository.getEpisodes(listOf(3, 1, 2, 1))
+
+        val episodes = (result as EpisodeResult.Success).episodes
+        assertEquals(listOf(3, 1, 2), episodes.map { it.id })
+        assertEquals(listOf("S01E03", "S01E01", "S01E02"), episodes.map { it.code })
+        assertEquals("/episode/3,1,2", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun `uses the single episode endpoint for one id`() = runTest {
+        server.enqueueJson(EPISODE_ONE_JSON)
+
+        val result = repository.getEpisodes(listOf(1))
+
+        assertEquals(listOf(1), (result as EpisodeResult.Success).episodes.map { it.id })
+        assertEquals("/episode/1", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun `returns an empty episode list without a request`() = runTest {
+        val result = repository.getEpisodes(emptyList())
+
+        assertTrue((result as EpisodeResult.Success).episodes.isEmpty())
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `maps an episode HTTP failure without affecting character contract`() = runTest {
+        server.enqueueResponse(code = 500, body = "Server error")
+
+        val result = repository.getEpisodes(listOf(1, 2))
+
+        assertEquals(
+            EpisodeResult.Failure(CharacterRepositoryError.Http(500)),
+            result,
+        )
+    }
+
+    @Test
+    fun `maps invalid episode JSON to serialization error`() = runTest {
+        server.enqueueJson("{invalid-json")
+
+        val result = repository.getEpisodes(listOf(1))
+
+        assertEquals(
+            EpisodeResult.Failure(CharacterRepositoryError.Serialization),
+            result,
+        )
+    }
+
     private fun MockWebServer.enqueueJson(body: String) {
         enqueueResponse(code = 200, body = body)
     }
@@ -254,6 +323,41 @@ class CharacterRepositoryImplTest {
               },
               "results": []
             }
+        """.trimIndent()
+
+        val CHARACTER_DETAIL_JSON = """
+            {
+              "id": 2,
+              "name": "Morty Smith",
+              "status": "Alive",
+              "species": "Human",
+              "type": "",
+              "gender": "Male",
+              "origin": {"name": "unknown", "url": ""},
+              "location": {
+                "name": "Citadel of Ricks",
+                "url": "https://rickandmortyapi.com/api/location/3"
+              },
+              "image": "https://rickandmortyapi.com/api/character/avatar/2.jpeg",
+              "episode": [
+                "https://rickandmortyapi.com/api/episode/1",
+                "https://rickandmortyapi.com/api/episode/2"
+              ],
+              "url": "https://rickandmortyapi.com/api/character/2",
+              "created": "2017-11-04T18:50:21.651Z"
+            }
+        """.trimIndent()
+
+        val EPISODES_JSON = """
+            [
+              {"id":1,"name":"Pilot","episode":"S01E01"},
+              {"id":2,"name":"Lawnmower Dog","episode":"S01E02"},
+              {"id":3,"name":"Anatomy Park","episode":"S01E03"}
+            ]
+        """.trimIndent()
+
+        val EPISODE_ONE_JSON = """
+            {"id":1,"name":"Pilot","episode":"S01E01"}
         """.trimIndent()
     }
 }

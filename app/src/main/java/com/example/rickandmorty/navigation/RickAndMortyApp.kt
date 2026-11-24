@@ -19,9 +19,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.rickandmorty.R
 import com.example.rickandmorty.app.AppContainer
 import com.example.rickandmorty.domain.repository.SessionState
+import com.example.rickandmorty.domain.repository.CharacterRepository
 import com.example.rickandmorty.ui.auth.LoginScreen
 import com.example.rickandmorty.ui.auth.LoginViewModel
 import com.example.rickandmorty.ui.auth.LoginViewModelFactory
@@ -31,6 +34,9 @@ import com.example.rickandmorty.ui.auth.RegisterViewModelFactory
 import com.example.rickandmorty.ui.characters.CharacterListScreen
 import com.example.rickandmorty.ui.characters.CharacterListViewModel
 import com.example.rickandmorty.ui.characters.CharacterListViewModelFactory
+import com.example.rickandmorty.ui.characters.detail.CharacterDetailScreen
+import com.example.rickandmorty.ui.characters.detail.CharacterDetailViewModel
+import com.example.rickandmorty.ui.characters.detail.CharacterDetailViewModelFactory
 import com.example.rickandmorty.ui.session.SessionViewModel
 import com.example.rickandmorty.ui.session.SessionViewModelFactory
 
@@ -56,7 +62,7 @@ fun RickAndMortyApp(
 
         is SessionState.Authenticated -> key("authenticated-${state.user.id}") {
             AuthenticatedNavHost(
-                appContainer = appContainer,
+                characterRepository = appContainer.characterRepository,
                 onLogout = sessionViewModel::logout,
                 modifier = modifier,
             )
@@ -99,14 +105,14 @@ private fun AuthenticationNavHost(
 }
 
 @Composable
-private fun AuthenticatedNavHost(
-    appContainer: AppContainer,
+internal fun AuthenticatedNavHost(
+    characterRepository: CharacterRepository,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
-    val characterFactory = remember(appContainer.characterRepository) {
-        CharacterListViewModelFactory(appContainer.characterRepository)
+    val characterFactory = remember(characterRepository) {
+        CharacterListViewModelFactory(characterRepository)
     }
     NavHost(
         navController = navController,
@@ -118,6 +124,31 @@ private fun AuthenticatedNavHost(
             CharacterListScreen(
                 viewModel = characterViewModel,
                 onLogout = onLogout,
+                onCharacterSelected = { characterId ->
+                    navController.navigate(AppDestination.CharacterDetail.createRoute(characterId))
+                },
+            )
+        }
+        composable(
+            route = AppDestination.CharacterDetail.route,
+            arguments = listOf(
+                navArgument(AppDestination.CharacterDetail.CHARACTER_ID_ARGUMENT) {
+                    type = NavType.IntType
+                },
+            ),
+        ) { backStackEntry ->
+            val characterId = requireNotNull(
+                backStackEntry.arguments?.getInt(
+                    AppDestination.CharacterDetail.CHARACTER_ID_ARGUMENT,
+                ),
+            )
+            val detailFactory = remember(characterId, characterRepository) {
+                CharacterDetailViewModelFactory(characterId, characterRepository)
+            }
+            val detailViewModel = viewModel<CharacterDetailViewModel>(factory = detailFactory)
+            CharacterDetailScreen(
+                viewModel = detailViewModel,
+                onBack = { navController.popBackStack() },
             )
         }
     }

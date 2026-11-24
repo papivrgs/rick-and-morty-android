@@ -8,4 +8,8 @@ interface CharacterRepository {
         page: Int,
         filters: CharacterFilters = CharacterFilters(),
     ): CharacterPageResult
+
+    suspend fun getCharacter(id: Int): CharacterResult
+
+    suspend fun getEpisodes(ids: List<Int>): EpisodeResult
 }

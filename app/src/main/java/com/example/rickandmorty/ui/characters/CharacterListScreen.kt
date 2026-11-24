@@ -94,6 +94,7 @@ import kotlinx.coroutines.flow.filter
 fun CharacterListScreen(
     viewModel: CharacterListViewModel,
     onLogout: () -> Unit,
+    onCharacterSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -110,6 +111,7 @@ fun CharacterListScreen(
         onRetryInitialLoad = viewModel::retryInitialLoad,
         onRetryPagination = viewModel::retryPagination,
         onLogout = onLogout,
+        onCharacterSelected = onCharacterSelected,
     )
 }
 
@@ -127,6 +129,7 @@ fun CharacterListContent(
     onRetryInitialLoad: () -> Unit = {},
     onRetryPagination: () -> Unit = {},
     onLogout: () -> Unit = {},
+    onCharacterSelected: (Int) -> Unit = {},
 ) {
     var areFiltersVisible by rememberSaveable { mutableStateOf(true) }
     var isLogoutConfirmationVisible by rememberSaveable { mutableStateOf(false) }
@@ -230,6 +233,7 @@ fun CharacterListContent(
                             onLoadNextPage = onLoadNextPage,
                             onRetryPagination = onRetryPagination,
                             onRefresh = onRefresh,
+                            onCharacterSelected = onCharacterSelected,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -508,6 +512,7 @@ private fun CharacterList(
     onLoadNextPage: () -> Unit,
     onRetryPagination: () -> Unit,
     onRefresh: () -> Unit,
+    onCharacterSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PaginationEffect(
@@ -536,7 +541,11 @@ private fun CharacterList(
             items = uiState.characters,
             key = Character::id,
         ) { character ->
-            CharacterCard(character = character)
+            CharacterCard(
+                character = character,
+                modifier = Modifier.testTag("character_card_${character.id}"),
+                onClick = { onCharacterSelected(character.id) },
+            )
         }
 
         when {
