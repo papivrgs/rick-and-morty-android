@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.filter
 @Composable
 fun CharacterListScreen(
     viewModel: CharacterListViewModel,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,6 +63,7 @@ fun CharacterListScreen(
         onLoadNextPage = viewModel::loadNextPage,
         onRetryInitialLoad = viewModel::retryInitialLoad,
         onRetryPagination = viewModel::retryPagination,
+        onLogout = onLogout,
         modifier = modifier,
     )
 }
@@ -73,6 +76,7 @@ fun CharacterListContent(
     onRetryInitialLoad: () -> Unit,
     onRetryPagination: () -> Unit,
     modifier: Modifier = Modifier,
+    onLogout: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -83,6 +87,11 @@ fun CharacterListContent(
                         text = stringResource(R.string.character_list_title),
                         fontWeight = FontWeight.Bold,
                     )
+                },
+                actions = {
+                    TextButton(onClick = onLogout) {
+                        Text(stringResource(R.string.auth_logout))
+                    }
                 },
             )
         },
